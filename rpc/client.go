@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -343,6 +344,8 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 	if result != nil && reflect.TypeOf(result).Kind() != reflect.Ptr {
 		return fmt.Errorf("call result parameter must be pointer or nil interface: %v", result)
 	}
+
+	// slog.Info("CallContext", "method", method)
 	msg, err := c.newMessage(method, args...)
 	if err != nil {
 		return err
@@ -357,7 +360,14 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 	}
 
 	if c.isHTTP {
-		err = c.sendHTTP(ctx, op, msg)
+		if method == "engine_getPayloadV4" || method == "engine_forkchoiceUpdatedV3" {
+			err = c.sendHTTPWithSonic(ctx, op, msg)
+		} else if method == "eth_getBlockByNumber" {
+			err = c.sendHTTPWithNoCompression(ctx, op, msg)
+		} else {
+			err = c.sendHTTP(ctx, op, msg)
+		}
+		// err = c.sendHTTP(ctx, op, msg)
 	} else {
 		err = c.send(ctx, op, msg)
 	}
@@ -371,6 +381,7 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 		return err
 	}
 	resp := batchresp[0]
+
 	if recordDone != nil {
 		recordDone(ctx, msg, resp)
 	}
@@ -383,9 +394,12 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 		if result == nil {
 			return nil
 		}
-		return json.Unmarshal(resp.Result, result)
+		// return json.Unmarshal(resp.Result, result)
+		return sonicFastest.Unmarshal(resp.Result, result)
 	}
 }
+
+var sonicFastest = sonic.ConfigFastest
 
 // BatchCall sends all given requests as a single batch and waits for the server
 // to return a response for all of them.

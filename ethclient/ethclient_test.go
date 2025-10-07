@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/ethapi/override"
@@ -402,6 +403,19 @@ func testBalanceAt(t *testing.T, client *rpc.Client) {
 			}
 		})
 	}
+}
+
+func TestSonic(t *testing.T) {
+	// ec := ethclient.NewClient(client)
+	data := `{"baseFeePerGas":"0x2da282a8","blobGasUsed":"0x0","difficulty":"0x0","excessBlobGas":"0x0","extraData":"0x74657374","gasLimit":"0x47e7c4","gasUsed":"0xa410","hash":"0x84c82d89ac0fd95a30e4ee94696102051f5a26daa4a1001118c09610f3294c4c","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x2","parentBeaconBlockRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","parentHash":"0x3405339aee61e7a887d432c24a4c6dda9a675a4c9e867ba0db4455d2dc87e73b","receiptsRoot":"0xd95b673818fa493deec414e01e610d97ee287c9421c8eff4102b1647c1a184e4","requestsHash":"0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x33a","stateRoot":"0x7a0ac406393f238877ee8030400dfffa7cd78fc8209dbdc6379e7f90f97a7763","timestamp":"0x2346","transactions":[{"blockHash":"0x84c82d89ac0fd95a30e4ee94696102051f5a26daa4a1001118c09610f3294c4c","blockNumber":"0x2","from":"0x71562b71999873db5b286df957af199ec94617f7","gas":"0x5208","gasPrice":"0x3b9aca00","hash":"0xcf02273f2b656c3d919e68d3fbf3adc44f7a376cc0b97350d6f333ec0f24236e","input":"0x","nonce":"0x0","to":"0x0200000000000000000000000000000000000000","transactionIndex":"0x0","value":"0xc","type":"0x0","chainId":"0x539","v":"0xa96","r":"0xa2fe848dd9e03cc0bd52ad1453b037e580daade904bee80642bed2a0f377b00b","s":"0x6e9d208eab4bdc059a21236e088e8140bda1c717da4ed9c163546b22ce12868c"},{"blockHash":"0x84c82d89ac0fd95a30e4ee94696102051f5a26daa4a1001118c09610f3294c4c","blockNumber":"0x2","from":"0x71562b71999873db5b286df957af199ec94617f7","gas":"0x5208","gasPrice":"0x3b9aca00","hash":"0xda46ac493dab369bb67792e21229ee00ae32326fca8160abd6960b700c043925","input":"0x","nonce":"0x1","to":"0x0200000000000000000000000000000000000000","transactionIndex":"0x1","value":"0x8","type":"0x0","chainId":"0x539","v":"0xa96","r":"0x18aaad05374d5d844203e0fe7e3bd0d7b66787a8069da7abb2ef993bd58ff9a9","s":"0xcc8a1cc7ff1000e7f9c1085ca2738dfdf15dfc0c7273c6d9fc913bd277bb65f"}],"transactionsRoot":"0x542eb824314ce48fc367ef410035b895450119f71ef82b80e5ccbfcfd72c42d8","uncles":[],"withdrawals":[],"withdrawalsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"}`
+	res := ethclient.FullRpcBlock{
+		Header: &types.Header{},
+	}
+	sonic.ConfigFastest.Unmarshal([]byte(data), &res)
+	fmt.Println(res)
+	fmt.Println(res.Header)
+	fmt.Println("hash", res.RpcBlock.Hash)
+	fmt.Println("transactions", len(res.RpcBlock.Transactions))
 }
 
 func testTransactionInBlock(t *testing.T, client *rpc.Client) {

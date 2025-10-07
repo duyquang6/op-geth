@@ -171,6 +171,10 @@ func newClientTransportHTTP(endpoint string, cfg *clientConfig) reconnectFunc {
 
 func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {
 	hc := c.writeConn.(*httpConn)
+	hc.mu.Lock()
+	// disable compression
+	hc.headers.Del("accept-encoding")
+	hc.mu.Unlock()
 	respBody, err := hc.doRequest(ctx, msg)
 	if err != nil {
 		return err
@@ -180,6 +184,44 @@ func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) e
 	var resp jsonrpcMessage
 	batch := [1]*jsonrpcMessage{&resp}
 	if err := json.NewDecoder(respBody).Decode(&resp); err != nil {
+		return err
+	}
+	op.resp <- batch[:]
+	return nil
+}
+
+func (c *Client) sendHTTPWithNoCompression(ctx context.Context, op *requestOp, msg interface{}) error {
+	hc := c.writeConn.(*httpConn)
+	hc.mu.Lock()
+	// disable compression
+	hc.headers.Set("accept-encoding", "identity")
+	hc.mu.Unlock()
+	respBody, err := hc.doRequest(ctx, msg)
+	if err != nil {
+		return err
+	}
+	defer respBody.Close()
+
+	var resp jsonrpcMessage
+	batch := [1]*jsonrpcMessage{&resp}
+	if err := sonicFastest.NewDecoder(respBody).Decode(&resp); err != nil {
+		return err
+	}
+	op.resp <- batch[:]
+	return nil
+}
+
+func (c *Client) sendHTTPWithSonic(ctx context.Context, op *requestOp, msg interface{}) error {
+	hc := c.writeConn.(*httpConn)
+	respBody, err := hc.doRequest(ctx, msg)
+	if err != nil {
+		return err
+	}
+	defer respBody.Close()
+
+	var resp jsonrpcMessage
+	batch := [1]*jsonrpcMessage{&resp}
+	if err := sonicFastest.NewDecoder(respBody).Decode(&resp); err != nil {
 		return err
 	}
 	op.resp <- batch[:]

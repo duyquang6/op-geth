@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/bytedance/sonic"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -130,34 +131,162 @@ func (ec *Client) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumb
 	return r, err
 }
 
-type rpcBlock struct {
+type RpcBlock struct {
 	Hash         *common.Hash        `json:"hash"`
 	Transactions []rpcTransaction    `json:"transactions"`
 	UncleHashes  []common.Hash       `json:"uncles"`
 	Withdrawals  []*types.Withdrawal `json:"withdrawals,omitempty"`
 }
 
+var sonicFastest = sonic.ConfigFastest
+
+func (h *FullRpcBlock) UnmarshalJSON(input []byte) error {
+	type Header struct {
+		ParentHash       *common.Hash      `json:"parentHash"       gencodec:"required"`
+		UncleHash        *common.Hash      `json:"sha3Uncles"       gencodec:"required"`
+		Coinbase         *common.Address   `json:"miner"`
+		Root             *common.Hash      `json:"stateRoot"        gencodec:"required"`
+		TxHash           *common.Hash      `json:"transactionsRoot" gencodec:"required"`
+		ReceiptHash      *common.Hash      `json:"receiptsRoot"     gencodec:"required"`
+		Bloom            *types.Bloom      `json:"logsBloom"        gencodec:"required"`
+		Difficulty       *hexutil.Big      `json:"difficulty"       gencodec:"required"`
+		Number           *hexutil.Big      `json:"number"           gencodec:"required"`
+		GasLimit         *hexutil.Uint64   `json:"gasLimit"         gencodec:"required"`
+		GasUsed          *hexutil.Uint64   `json:"gasUsed"          gencodec:"required"`
+		Time             *hexutil.Uint64   `json:"timestamp"        gencodec:"required"`
+		Extra            *hexutil.Bytes    `json:"extraData"        gencodec:"required"`
+		MixDigest        *common.Hash      `json:"mixHash"`
+		Nonce            *types.BlockNonce `json:"nonce"`
+		BaseFee          *hexutil.Big      `json:"baseFeePerGas" rlp:"optional"`
+		WithdrawalsHash  *common.Hash      `json:"withdrawalsRoot" rlp:"optional"`
+		BlobGasUsed      *hexutil.Uint64   `json:"blobGasUsed" rlp:"optional"`
+		ExcessBlobGas    *hexutil.Uint64   `json:"excessBlobGas" rlp:"optional"`
+		ParentBeaconRoot *common.Hash      `json:"parentBeaconBlockRoot" rlp:"optional"`
+		RequestsHash     *common.Hash      `json:"requestsHash" rlp:"optional"`
+
+		*RpcBlock
+	}
+	var dec Header
+	if err := sonicFastest.Unmarshal(input, &dec); err != nil {
+		return err
+	}
+	if dec.ParentHash == nil {
+		return errors.New("missing required field 'parentHash' for Header")
+	}
+	h.Header = &types.Header{}
+	h.Header.ParentHash = *dec.ParentHash
+	if dec.UncleHash == nil {
+		return errors.New("missing required field 'sha3Uncles' for Header")
+	}
+	h.Header.UncleHash = *dec.UncleHash
+	if dec.Coinbase != nil {
+		h.Header.Coinbase = *dec.Coinbase
+	}
+	if dec.Root == nil {
+		return errors.New("missing required field 'stateRoot' for Header")
+	}
+	h.Header.Root = *dec.Root
+	if dec.TxHash == nil {
+		return errors.New("missing required field 'transactionsRoot' for Header")
+	}
+	h.Header.TxHash = *dec.TxHash
+	if dec.ReceiptHash == nil {
+		return errors.New("missing required field 'receiptsRoot' for Header")
+	}
+	h.Header.ReceiptHash = *dec.ReceiptHash
+	if dec.Bloom == nil {
+		return errors.New("missing required field 'logsBloom' for Header")
+	}
+	h.Header.Bloom = *dec.Bloom
+	if dec.Difficulty == nil {
+		return errors.New("missing required field 'difficulty' for Header")
+	}
+	h.Header.Difficulty = (*big.Int)(dec.Difficulty)
+	if dec.Number == nil {
+		return errors.New("missing required field 'number' for Header")
+	}
+	h.Header.Number = (*big.Int)(dec.Number)
+	if dec.GasLimit == nil {
+		return errors.New("missing required field 'gasLimit' for Header")
+	}
+	h.Header.GasLimit = uint64(*dec.GasLimit)
+	if dec.GasUsed == nil {
+		return errors.New("missing required field 'gasUsed' for Header")
+	}
+	h.Header.GasUsed = uint64(*dec.GasUsed)
+	if dec.Time == nil {
+		return errors.New("missing required field 'timestamp' for Header")
+	}
+	h.Header.Time = uint64(*dec.Time)
+	if dec.Extra == nil {
+		return errors.New("missing required field 'extraData' for Header")
+	}
+	h.Header.Extra = *dec.Extra
+	if dec.MixDigest != nil {
+		h.Header.MixDigest = *dec.MixDigest
+	}
+	if dec.Nonce != nil {
+		h.Header.Nonce = *dec.Nonce
+	}
+	if dec.BaseFee != nil {
+		h.Header.BaseFee = (*big.Int)(dec.BaseFee)
+	}
+	if dec.WithdrawalsHash != nil {
+		h.Header.WithdrawalsHash = dec.WithdrawalsHash
+	}
+	if dec.BlobGasUsed != nil {
+		h.Header.BlobGasUsed = (*uint64)(dec.BlobGasUsed)
+	}
+	if dec.ExcessBlobGas != nil {
+		h.Header.ExcessBlobGas = (*uint64)(dec.ExcessBlobGas)
+	}
+	if dec.ParentBeaconRoot != nil {
+		h.Header.ParentBeaconRoot = dec.ParentBeaconRoot
+	}
+	if dec.RequestsHash != nil {
+		h.Header.RequestsHash = dec.RequestsHash
+	}
+
+	h.RpcBlock = &RpcBlock{}
+	if dec.Hash != nil {
+		h.RpcBlock.Hash = dec.RpcBlock.Hash
+	}
+	if dec.Transactions != nil {
+		h.RpcBlock.Transactions = dec.Transactions
+	}
+	if dec.UncleHashes != nil {
+		h.RpcBlock.UncleHashes = dec.UncleHashes
+	}
+	if dec.Withdrawals != nil {
+		h.RpcBlock.Withdrawals = dec.Withdrawals
+	}
+
+	return nil
+}
+
+type FullRpcBlock struct {
+	Header   *types.Header
+	RpcBlock *RpcBlock
+}
+
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {
-	var raw json.RawMessage
-	err := ec.c.CallContext(ctx, &raw, method, args...)
+	var resp FullRpcBlock
+	err := ec.c.CallContext(ctx, &resp, method, args...)
 	if err != nil {
 		return nil, err
 	}
 
+	var (
+		head = resp.Header
+		body = resp.RpcBlock
+	)
+
 	// Decode header and transactions.
-	var head *types.Header
-	if err := json.Unmarshal(raw, &head); err != nil {
-		return nil, err
-	}
 	// When the block is not found, the API returns JSON null.
 	if head == nil {
 		return nil, ethereum.NotFound
 	}
 
-	var body rpcBlock
-	if err := json.Unmarshal(raw, &body); err != nil {
-		return nil, err
-	}
 	// Pending blocks don't return a block hash, compute it for sender caching.
 	if body.Hash == nil {
 		tmp := head.Hash()
@@ -264,10 +393,10 @@ type txExtraInfo struct {
 }
 
 func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
-	if err := json.Unmarshal(msg, &tx.tx); err != nil {
+	if err := sonicFastest.Unmarshal(msg, &tx.tx); err != nil {
 		return err
 	}
-	return json.Unmarshal(msg, &tx.txExtraInfo)
+	return sonicFastest.Unmarshal(msg, &tx.txExtraInfo)
 }
 
 // TransactionByHash returns the transaction with the given hash.

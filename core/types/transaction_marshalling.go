@@ -22,6 +22,7 @@ import (
 	"io"
 	"math/big"
 
+	"github.com/bytedance/sonic"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
@@ -209,10 +210,12 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&enc)
 }
 
+var sonicFastest = sonic.ConfigFastest
+
 // UnmarshalJSON unmarshals from JSON.
 func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	var dec txJSON
-	err := json.Unmarshal(input, &dec)
+	err := sonicFastest.Unmarshal(input, &dec)
 	if err != nil {
 		return err
 	}
